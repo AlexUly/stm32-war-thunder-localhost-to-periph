@@ -1,0 +1,1 @@
+Pulling stats from http://localhost:8111/state for some unreachable otherwise flight pararameters to handmade HUD with help of STM32F103C8T6. CH340 is used for USB-UART communication. Vy, AoA, engine efficiency and HP are displayed on ILI9341 LCD for pseudo second screen.
