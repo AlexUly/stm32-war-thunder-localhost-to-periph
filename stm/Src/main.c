@@ -80,11 +80,13 @@ char initBuf[7] = "-------";
 volatile uint8_t DATA[8];
 
 volatile uint8_t VyText[32];
-volatile uint8_t AoAText[16];
-volatile uint8_t efText[16];
-volatile uint8_t hpText[16];
+volatile uint8_t AoAText[32];
+volatile uint8_t efText[32];
+volatile uint8_t hpText[32];
+
 volatile int res;
 uint8_t mns[16];
+volatile int trig = 0;
 int input_buf_init(input_buf_t *input_buf, UART_HandleTypeDef *huart) {
 	 memset((void*) input_buf->buf, 0, INPUT_BUF_SIZE);
 	 input_buf->pos = 0;
@@ -111,7 +113,6 @@ int input_buf_read_content(input_buf_t *input_buf, char *output) {
  * Process UART interruption.
  */
 int input_buf_process_rxne_it(input_buf_t *input_buf) {
-	res = 1;
     return 0;
 }
 
@@ -148,18 +149,6 @@ int signedBinToInt(uint8_t copy){
 	return res;
 }
 
-
-void showBit(char data){
-
-	for(int i = 0; i < 8; i++){
-		if((data >> i) & 1){
-			HAL_UART_Transmit(&huart1, "1", 1, HAL_MAX_DELAY);
-		}
-		else
-			HAL_UART_Transmit(&huart1, "0", 1, HAL_MAX_DELAY);
-	}
-	HAL_UART_Transmit(&huart1, "\n", 1, HAL_MAX_DELAY);
-}
 
 char intToBin(){
 
@@ -205,7 +194,7 @@ int main(void)
   int size = 0;
   char commandBuf[INPUT_BUF_SIZE + 1];
   char MsgRes[32];
-  char initMsg[8] = "STMINIT";
+  char initMsg[9] = "STMINIT";
 
   input_buf_init(&project_input_buf, &huart1);
 
@@ -237,13 +226,8 @@ int main(void)
 	  j++;
 	  if(!strcmp(initBuf, initMsg)){
 		  HAL_UART_Transmit(&huart1, "STMCOM", 6, HAL_MAX_DELAY);
-		  //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 		  break;
-	  }
-	  if(j == 100000){
-
-		  j = 0;
 	  }
   }
 
@@ -260,27 +244,19 @@ int main(void)
   ILI9341_FillScreen(BLACK);
   volatile int temp1;
   volatile int temp2;
-  int trig = 1;
 
   while(1){
-	  int k = 0;
-	  HAL_UART_Transmit(&huart1, "R", 1, HAL_MAX_DELAY);
-	  while(1){
-		  if(k == 1000000){
-			  HAL_UART_Transmit(&huart1, "R", 1, HAL_MAX_DELAY);
-			  k = 0;
-		  }
-		  k++;
-		  int stat = HAL_UART_Receive_IT(&huart1, DATA, 8);
-		  if(res == 1){
-			  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-			  break;
-		  }
-		  huart1.pRxBuffPtr = DATA;
-	  }
 
-	  res = 0;
-	  temp1 =  binToInt(DATA[0]);
+	for(int i = 0 ; i < 8; i++){
+		DATA[i] = 0;
+	}
+
+
+	HAL_UART_Transmit(&huart1, "R", 1, HAL_MAX_DELAY);
+	HAL_UART_Receive(&huart1, DATA, 8, 1000);
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+
+	temp1 =  binToInt(DATA[0]);
 
 	  if(temp1 == 60){
 		  ILI9341_FillScreen(BLACK);
@@ -304,35 +280,12 @@ int main(void)
 		  ILI9341_DrawText(AoAText, FONT4 , 10, 60, WHITE, BLACK);
 		  ILI9341_DrawText(efText, FONT4 , 10, 80, WHITE, BLACK);
 		  ILI9341_DrawText(hpText, FONT4 , 10, 100, WHITE, BLACK);
-
 	  }
-	  else {
+	  else{
 		  ILI9341_FillScreen(BLACK);
 		  ILI9341_DrawText("STANDBY", FONT4 , 10, 10, WHITE, BLACK);
 	  }
-	  HAL_Delay(300);
-
-  }
-
- // return 0;
-
-
-
-
-
-  DATA[0] = 60;
-
-  if(DATA[0] == 60){
-	  ILI9341_FillScreen(BLACK);
-	  ILI9341_DrawText("IN GAME", FONT4 , 10, 10, WHITE, BLACK);
-	  ILI9341_DrawText(VyText, FONT4 , 10, 40, WHITE, BLACK);
-	  ILI9341_DrawText(AoAText, FONT4 , 10, 60, WHITE, BLACK);
-	  ILI9341_DrawText(efText, FONT4 , 10, 80, WHITE, BLACK);
-	  ILI9341_DrawText(hpText, FONT4 , 10, 100, WHITE, BLACK);
-  }
-  else{
-	  ILI9341_FillScreen(BLACK);
-	  ILI9341_DrawText("STANDBY", FONT4 , 10, 10, WHITE, BLACK);
+	  HAL_Delay(500);
   }
 
 
@@ -344,24 +297,6 @@ int main(void)
   while (1)
   {
 
-	  uint8_t state = HAL_UART_GetState(&huart1);
-	  HAL_UART_Receive_IT(&huart1, MsgRes, 32);
-	  msgLen = strlen(MsgRes);
-	  int len = (huart1.pRxBuffPtr - (unsigned char *)MsgRes)/ sizeof(char);
-	  //sprintf(msg22, "x: %04i\n", len);
-	  if(len){
-		   //HAL_UART_Transmit(&huart1, msg22, strlen(msg22), HAL_MAX_DELAY);
-	   	   //HAL_UART_Transmit(&huart1, "\n", 1, HAL_MAX_DELAY);
-	   }
-	   if(huart1.pRxBuffPtr != MsgRes){
-		int len = (huart1.pRxBuffPtr -  (unsigned char *) MsgRes)/ sizeof(char);
-	   //if(huart1.gState != HAL_UART_STATE_BUSY_RX){
-		HAL_UART_Transmit(&huart1, MsgRes, strlen(MsgRes) - 1, HAL_MAX_DELAY);
-	    HAL_UART_Transmit(&huart1, "\n", 1, HAL_MAX_DELAY);
-		huart1.pRxBuffPtr = MsgRes;
-
-	   }
-	   //HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
