@@ -92,7 +92,7 @@ public:
     int  Init(){
         if(console)
             std::cout << "INITIALIZING\n";
-        hPort = ::CreateFile(_T("COM3"), GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        hPort = ::CreateFile(_T("COM5"), GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         if (hPort != INVALID_HANDLE_VALUE) {
             if(console)
                 std::cout << "PORT OK\n";
@@ -160,6 +160,8 @@ public:
         std::ifstream fileIn("stats.json");
 
         fileIn >> stats;
+        if( stats["valid"] == false)
+            return;
         Tele.Vy = stats["Vy, m/s"];
         Tele.valid = stats["valid"];
         Tele.AoA = stats["AoA, deg"];
@@ -170,6 +172,16 @@ public:
         int fractional;
         double integ;
         fractional = modf(Tele.Vy, &integ) * 10;
+        DATA[0] = 0;
+
+
+        DATA[1] = 0;
+        DATA[2] = 0;
+        DATA[3] = 0;
+        DATA[4] = 0;
+        DATA[5] = 0;
+        DATA[6] = 0;
+        DATA[7] = 0;
 
         Tele.valid == true ? DATA[0] = intBin(60,  DATA[0]) : DATA[0] = 0;
         signedIntBin((int) integ,  DATA[1]);
@@ -184,10 +196,11 @@ public:
     }
 
     void dataSend(){
+        URC[0] = 0;
         ReadFile(hPort, &URC, sizeof(URC), &strSize, 0);
         char inChar = URC[0];
         if (inChar == 'R') {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
             if(console){
                 std::cout << binToInt(DATA[0]) << std::endl;
                 std::cout << "Vy: "<<binToInt(DATA[1]) << "." << binToInt(DATA[2])  << std::endl;
